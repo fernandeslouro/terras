@@ -1,0 +1,5 @@
+*
+!.gitignore
+!*.ipynb
+!*.geojson
+!gadm36_PRT_shp
