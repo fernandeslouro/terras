@@ -6,6 +6,7 @@ import os
 import geopandas as gpd
 from sentinelsat import SentinelAPI, read_geojson, geojson_to_wkt
 import shutil
+import zipfile
 
 
 def daterange(start_date, end_date):
@@ -42,6 +43,7 @@ def download_most_recent_product(products_dataframe, polygon_to_overlap, path, u
         with zipfile.ZipFile(os.path.join(path, to_download['title']+'.zip'), 'r') as zip_ref:
             zip_ref.extractall(path)
         os.remove(os.path.join(path, to_download['title']+'.zip'))
+    return to_download
 
 
 def download_no_fail(product, path, username, password, server):
@@ -65,6 +67,13 @@ def outer_square_points(list_of_tuples):
                     (min(lat), max(long)),
                     (max(lat), max(long)),
                     (max(lat), min(long))]
+    return geometry.Polygon(points_list)
+
+def polygon_outer_square(poly):
+    points_list = [(poly.bounds[0], poly.bounds[3]),
+              (poly.bounds[0], poly.bounds[1]),
+              (poly.bounds[2], poly.bounds[1]),
+              (poly.bounds[2], poly.bounds[3])]
     return geometry.Polygon(points_list)
 
 def single_row_dataframe_to_dict(sr_df): 
