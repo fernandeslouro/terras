@@ -4,6 +4,7 @@ import datetime
 import glob
 import os
 import geopandas as gpd
+import numpy as np
 from sentinelsat import SentinelAPI, read_geojson, geojson_to_wkt
 import shutil
 import zipfile
@@ -75,6 +76,15 @@ def polygon_outer_square(poly):
               (poly.bounds[2], poly.bounds[1]),
               (poly.bounds[2], poly.bounds[3])]
     return geometry.Polygon(points_list)
+
+def append_transparency_band(rgb_array):
+    mask = np.full((rgb_array.shape[1], rgb_array.shape[2]), True, dtype=bool)
+    for band in range(rgb_array.shape[0]):
+        mask *= rgb_array[band]==0
+    mask = 255 * mask
+    mask = mask.reshape((1, mask.shape[0], mask.shape[1]))
+    mask = 255-mask
+    return np.append(rgb_array, mask, axis=0)
 
 def single_row_dataframe_to_dict(sr_df): 
     return list(sr_df.to_dict('index').values())[0]
