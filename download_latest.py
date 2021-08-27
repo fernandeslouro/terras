@@ -25,6 +25,7 @@ args=parser.parse_args()
 
 cutoff_shp, cutoff_shp_ptcrs, outer_square = utilities.get_zone_info(args.cutoff_name, county=args.county)
 
+intermediate_existed = os.path.isdir(args.intermediate_folder)
 os.makedirs(args.intermediate_folder, exist_ok=True)
 os.makedirs(args.dest, exist_ok=True)
 
@@ -72,7 +73,10 @@ for f in utilities.listdir_nohidden(args.dest):
         #os.remove(os.path.join(args.dest, f))
         os.remove(f)
 
-if args.delete_intermediate_files:        
-    shutil.rmtree(os.path.join(args.intermediate_folder, f'{downloaded_product["title"]}.SAFE')) 
+if args.delete_intermediate_files:
+    if intermediate_existed:
+        shutil.rmtree(os.path.join(args.intermediate_folder, f'{downloaded_product["title"]}.SAFE')) 
+    else:
+        shutil.rmtree(args.intermediate_folder)
 
 #maria e linda bebe mmoooooooooo!!!!!!       
