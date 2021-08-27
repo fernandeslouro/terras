@@ -8,7 +8,13 @@ import numpy as np
 from sentinelsat import SentinelAPI, read_geojson, geojson_to_wkt
 import shutil
 import zipfile
-
+import shutil
+import numpy as np
+import geopandas as gpd
+import rasterio
+import rasterio.mask
+from sentinelsat import SentinelAPI
+from datetime import date, timedelta
 
 def daterange(start_date, end_date):
     for n in range(int((end_date - start_date).days)):
@@ -100,10 +106,68 @@ def get_zone_info(cutoff_name, county=True):
         level = 3
     
     all_shapes = gpd.read_file(f"shapefiles/gadm36_PRT_{level}.shp")
-    cutoff_shp = all_shapes[all_shapes[f'NAME_{level}']==args.cutoff_name].iloc[0].geometry
+    cutoff_shp = all_shapes[all_shapes[f'NAME_{level}']==cutoff_name].iloc[0].geometry
     all_shapes_ptcrs = all_shapes.to_crs(epsg=32629)
     cutoff_shp_ptcrs = all_shapes_ptcrs[all_shapes_ptcrs[f'NAME_{level}']==cutoff_name].iloc[0].geometry
 
     outer_square = polygon_outer_square(cutoff_shp)
 
     return cutoff_shp, cutoff_shp_ptcrs, outer_square
+
+
+def download_latest(intermediate_folder, dest, cutoff_name, county, days_back, username, password, server, delete_intermediate_files):
+    cutoff_shp, cutoff_shp_ptcrs, outer_square = get_zone_info(cutoff_name, county=county)
+
+    intermediate_existed = os.path.isdir(intermediate_folder)
+    os.makedirs(intermediate_folder, exist_ok=True)
+    os.makedirs(dest, exist_ok=True)
+
+    #get products list from this day
+    api = SentinelAPI(username, password, server)
+    products = api.query(outer_square,
+                     date=(date.today() - timedelta(int(days_back)), date.today()),
+                     platformname='Sentinel-2',
+                     cloudcoverpercentage=(0, 30))
+    products_df = api.to_dataframe(products)
+
+    if products_df.empty:
+        print('No images found')
+    else:    
+        downloaded_product = download_most_recent_product(products_df, polygon_to_overlap=cutoff_shp, download_path=intermediate_folder)
+    
+    # copy jp2 to dest
+    subfolders_copy(os.path.join(intermediate_folder, downloaded_product['title'] + '.SAFE'), dest)
+
+    # save cropped jp2 with same name 
+    for i in [img for img in listdir_nohidden(dest) if img.endswith('.jp2')]:
+        for namepart in i.split('/')[-1].split('_'):
+            if namepart.startswith('202'):
+                imgname = f'{namepart[:4]}-{namepart[4:6]}-{namepart[6:8]}_{namepart[9:11]}:{namepart[11:13]}'
+                break
+        #with rasterio.open(os.path.join(dest, i)) as src:
+        print(dest, i)
+        with rasterio.open(i) as src:
+            out_image, out_transform = rasterio.mask.mask(src, [cutoff_shp_ptcrs], crop=True, nodata=0, all_touched=True)
+            out_meta = src.meta.copy() 
+    
+        out_image = append_transparency_band(out_image)
+            
+        with rasterio.open(os.path.join(dest, imgname)+'.png','w',
+                       driver='PNG',
+                       height=out_image.shape[1],
+                       width=out_image.shape[2],
+                       dtype=rasterio.uint8,
+                       count=out_image.shape[0],
+                       compress='lzw') as dst:
+            dst.write(np.array(out_image, dtype='uint8'))
+    
+    for f in listdir_nohidden(dest):
+        if '.jp2' in f and not f.startswith('.'):
+            #os.remove(os.path.join(dest, f))
+            os.remove(f)
+
+    if delete_intermediate_files:
+        if intermediate_existed:
+            shutil.rmtree(os.path.join(intermediate_folder, f'{downloaded_product["title"]}.SAFE')) 
+        else:
+            shutil.rmtree(intermediate_folder)
