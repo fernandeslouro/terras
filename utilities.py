@@ -29,7 +29,7 @@ def transform_shapefile(shp):
     to_mask_input = [geometry.Polygon([[p[0], p[1]] for p in shp_t['geometry']['coordinates']])]
     return to_mask_input
 
-def download_most_recent_product(products_dataframe, polygon_to_overlap, file_path, username='fernandeslouro', pw='copernicospw', server='https://scihub.copernicus.eu/dhus', unzip=True):
+def download_most_recent_product(products_dataframe, polygon_to_overlap, download_path, username='fernandeslouro', pw='copernicospw', server='https://scihub.copernicus.eu/dhus', unzip=True):
     products_dataframe['footprint'] = gpd.GeoSeries.from_wkt(products_dataframe['footprint'])
     products_dataframe = gpd.GeoDataFrame(products_dataframe, geometry='footprint')
     products_dataframe['intersection_area'] = products_dataframe.apply(lambda row: 
@@ -39,11 +39,11 @@ def download_most_recent_product(products_dataframe, polygon_to_overlap, file_pa
     to_download = products_dataframe[products_dataframe.intersection_area == max(products_dataframe.intersection_area)]
     to_download = to_download.sort_values('generationdate', ascending=False)
     to_download = single_row_dataframe_to_dict(to_download)
-    download_no_fail(to_download['uuid'], file_path, username, pw, server)
+    download_no_fail(to_download['uuid'], download_path, username, pw, server)
     if unzip:
-        with zipfile.ZipFile(os.path.join(file_path, to_download['title']+'.zip'), 'r') as zip_ref:
-            zip_ref.extractall(file_path)
-        os.remove(os.path.join(file_path, to_download['title']+'.zip'))
+        with zipfile.ZipFile(os.path.join(download_path, to_download['title']+'.zip'), 'r') as zip_ref:
+            zip_ref.extractall(download_path)
+        os.remove(os.path.join(download_path, to_download['title']+'.zip'))
     return to_download
 
 
@@ -91,3 +91,19 @@ def single_row_dataframe_to_dict(sr_df):
 
 def listdir_nohidden(path):
     return glob.glob(os.path.join(path, '*'))
+
+
+def get_zone_info(cutoff_name, county=True):
+    if county == 'True':
+        level=2
+    else:
+        level = 3
+    
+    all_shapes = gpd.read_file(f"shapefiles/gadm36_PRT_{level}.shp")
+    cutoff_shp = all_shapes[all_shapes[f'NAME_{level}']==args.cutoff_name].iloc[0].geometry
+    all_shapes_ptcrs = all_shapes.to_crs(epsg=32629)
+    cutoff_shp_ptcrs = all_shapes_ptcrs[all_shapes_ptcrs[f'NAME_{level}']==cutoff_name].iloc[0].geometry
+
+    outer_square = polygon_outer_square(cutoff_shp)
+
+    return cutoff_shp, cutoff_shp_ptcrs, outer_square

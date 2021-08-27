@@ -9,10 +9,10 @@ from sentinelsat import SentinelAPI
 from datetime import date, timedelta
 import utilities
 
-#!python download_latest --intermediate_file path --dest dest --cutoff_name Mação --county True --days_back 7 --username fernandeslouro --password copernicospw --server https://scihub.copernicus.eu/dhus
+#!python download_latest --intermediate_folder path --dest dest --cutoff_name Mação --county True --days_back 7 --username fernandeslouro --password copernicospw --server https://scihub.copernicus.eu/dhus
 
 parser=argparse.ArgumentParser()
-parser.add_argument('--intermediate_file', action='store', type=str, help='Intermediate file to be created')
+parser.add_argument('--intermediate_folder', action='store', type=str, help='Intermediate folder to be created')
 parser.add_argument('--dest', action='store', type=str, help='Destination path to drop the cripped images')
 parser.add_argument('--cutoff_name', action='store', type=str, help='Name of the parish or county to be cut off, e.g. "Mação", "Cardigos"')
 parser.add_argument('--county', action='store', type=str, help='Boolean value representing whether cutoff_name is a county. If not "True", it is assumed that cutoff_name is the name of a parish')
@@ -20,21 +20,12 @@ parser.add_argument('--days_back', action='store', help='Number of days to check
 parser.add_argument('--username', action='store', type=str, help='Sentinel username')
 parser.add_argument('--password', action='store', type=str, help='Sentinel Password')
 parser.add_argument('--server', action='store', type=str, help='Sentinel server, e.g. https://scihub.copernicus.eu/dhus')
+parser.add_argument('--delete_intermediate_files', action='store_true', help='Run with this option to delete intermediate files (all data downloaded from Copernicus)')
 args=parser.parse_args()
 
-if args.county == 'True':
-    level=2
-else:
-    level = 3
-    
-all_shapes = gpd.read_file(f"shapefiles/gadm36_PRT_{level}.shp")
-cutoff_shp = all_shapes[all_shapes[f'NAME_{level}']==args.cutoff_name].iloc[0].geometry
-all_shapes_ptcrs = all_shapes.to_crs(epsg=32629)
-cutoff_shp_ptcrs = all_shapes_ptcrs[all_shapes_ptcrs[f'NAME_{level}']==args.cutoff_name].iloc[0].geometry
+cutoff_shp, cutoff_shp_ptcrs, outer_square = utilities.get_zone_info(args.cutoff_name, county=args.county)
 
-outer_square = utilities.polygon_outer_square(cutoff_shp)
-
-os.makedirs(args.intermediate_file, exist_ok=True)
+os.makedirs(args.intermediate_folder, exist_ok=True)
 os.makedirs(args.dest, exist_ok=True)
 
 #get products list from this day
@@ -48,10 +39,10 @@ products_df = api.to_dataframe(products)
 if products_df.empty:
     print('No images found')
 else:    
-    downloaded_product = utilities.download_most_recent_product(products_df, polygon_to_overlap=cutoff_shp, path=args.intermediate_file)
+    downloaded_product = utilities.download_most_recent_product(products_df, polygon_to_overlap=cutoff_shp, download_path=args.intermediate_folder)
     
 # copy jp2 to args.dest
-utilities.subfolders_copy(os.path.join(args.intermediate_file, downloaded_product['title'] + '.SAFE'), args.dest)
+utilities.subfolders_copy(os.path.join(args.intermediate_folder, downloaded_product['title'] + '.SAFE'), args.dest)
 
 # save cropped jp2 with same name 
 for i in [img for img in utilities.listdir_nohidden(args.dest) if img.endswith('.jp2')]:
@@ -80,7 +71,8 @@ for f in utilities.listdir_nohidden(args.dest):
     if '.jp2' in f and not f.startswith('.'):
         #os.remove(os.path.join(args.dest, f))
         os.remove(f)
-        
-shutil.rmtree(os.path.join(path, f'{downloaded_product["title"]}.SAFE')) 
+
+if args.delete_intermediate_files:        
+    shutil.rmtree(os.path.join(args.intermediate_folder, f'{downloaded_product["title"]}.SAFE')) 
 
 #maria e linda bebe mmoooooooooo!!!!!!       
