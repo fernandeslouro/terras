@@ -4,7 +4,8 @@ import shutil
 import numpy as np
 import geopandas as gpd
 import rasterio
-from sentinelsat import SentinelAPI, read_geojson, geojson_to_wkt
+import rasterio.mask
+from sentinelsat import SentinelAPI
 from datetime import date, timedelta
 import utilities
 
@@ -26,7 +27,7 @@ if args.county == 'True':
 else:
     level = 3
     
-all_shapes = gpd.read_file(f"gadm36_PRT_shp/gadm36_PRT_{level}.shp")
+all_shapes = gpd.read_file(f"shapefiles/gadm36_PRT_{level}.shp")
 cutoff_shp = all_shapes[all_shapes[f'NAME_{level}']==args.cutoff_name].iloc[0].geometry
 all_shapes_ptcrs = all_shapes.to_crs(epsg=32629)
 cutoff_shp_ptcrs = all_shapes_ptcrs[all_shapes_ptcrs[f'NAME_{level}']==args.cutoff_name].iloc[0].geometry
@@ -39,7 +40,7 @@ os.makedirs(args.dest, exist_ok=True)
 #get products list from this day
 api = SentinelAPI(args.username, args.password, args.server)
 products = api.query(outer_square,
-                     date=(date.today() - timedelta(args.days_back), date.today()),
+                     date=(date.today() - timedelta(int(args.days_back)), date.today()),
                      platformname='Sentinel-2',
                      cloudcoverpercentage=(0, 30))
 products_df = api.to_dataframe(products)
@@ -58,7 +59,9 @@ for i in [img for img in utilities.listdir_nohidden(args.dest) if img.endswith('
         if namepart.startswith('202'):
             imgname = f'{namepart[:4]}-{namepart[4:6]}-{namepart[6:8]}_{namepart[9:11]}:{namepart[11:13]}'
             break
-    with rasterio.open(os.path.join(args.dest, i)) as src:
+    #with rasterio.open(os.path.join(args.dest, i)) as src:
+    print(args.dest, i)
+    with rasterio.open(i) as src:
         out_image, out_transform = rasterio.mask.mask(src, [cutoff_shp_ptcrs], crop=True, nodata=0, all_touched=True)
         out_meta = src.meta.copy() 
     
@@ -75,7 +78,8 @@ for i in [img for img in utilities.listdir_nohidden(args.dest) if img.endswith('
     
 for f in utilities.listdir_nohidden(args.dest):
     if '.jp2' in f and not f.startswith('.'):
-        os.remove(os.path.join(args.dest, f))
+        #os.remove(os.path.join(args.dest, f))
+        os.remove(f)
         
 shutil.rmtree(os.path.join(path, f'{downloaded_product["title"]}.SAFE')) 
 
