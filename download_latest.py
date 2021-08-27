@@ -1,9 +1,5 @@
-import os
 import argparse
 from utilities import download_latest
-
-#!python download_latest --intermediate_folder path --dest dest --cutoff_name Mação --county True --days_back 7 --username fernandeslouro --password copernicospw --server https://scihub.copernicus.eu/dhus
-
 
 if __name__ == "__main__":
 

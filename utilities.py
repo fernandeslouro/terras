@@ -1,11 +1,12 @@
 import pyproj
+from git import Repo
 from shapely import geometry
 import datetime
 import glob
 import os
 import geopandas as gpd
 import numpy as np
-from sentinelsat import SentinelAPI, read_geojson, geojson_to_wkt
+from sentinelsat import SentinelAPI
 import shutil
 import zipfile
 import shutil
@@ -171,3 +172,16 @@ def download_latest(intermediate_folder, dest, cutoff_name, county, days_back, u
             shutil.rmtree(os.path.join(intermediate_folder, f'{downloaded_product["title"]}.SAFE')) 
         else:
             shutil.rmtree(intermediate_folder)
+    
+    return str(os.path.join(dest, imgname)+'.png')
+
+
+def git_push(repo_path, commit_message):
+    try:
+        repo = Repo(repo_path)
+        repo.git.add(update=True)
+        repo.index.commit(commit_message)
+        origin = repo.remote(name='origin')
+        origin.push()
+    except:
+        print('Some error occured while pushing the code') 
