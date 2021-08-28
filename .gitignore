@@ -1,6 +1,3 @@
-*
-!.shapefiles
 !.gitignore
-!*.ipynb
-!*.geojson
-!*.py
+/__pycache
+/.ipynb_checkpoints
