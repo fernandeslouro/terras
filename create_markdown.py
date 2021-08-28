@@ -47,12 +47,17 @@ if __name__ == "__main__":
     # %%
     # crate new markdown file referencing the image, inside correct directory
     mdFile = MdUtils(file_name='hometown', title='Mação')
+    img_date = os.path.basename(new_image_path).split("_")[0]
 
-    mdFile.new_paragraph("This is a satellite image from my home region. This is the latest available image from ESA's Sentinel 2 satellites. It's kept updated using some [scripts](https://github.com/fernandeslouro/terras) I made, both as a simple project to entertain myself, and to have a little something on my website to remember myself of the passage of time.")
-    mdFile.new_paragraph("In the summer months, the picture will appear very brown. This is due to the recent wildfires wich burned most of the area. In winter, it turns greener, but there's not a lot of forest at the moment. The population is also shrinking at an alarming pace.")
+    mdFile.new_paragraph(f"This is a satellite picture of Mação, my home region, on {img_date}. It is the latest available image from ESA's Sentinel 2 satellites. It's kept updated using some [scripts](https://github.com/fernandeslouro/terras) I made to have something on my website to mark the passage of time.")
+
+    mdFile.new_paragraph("In the summer months, the picture will appear very brown. Most of the area was burned in recent wildfires, and it shows when the grass dies. In winter, it turns greener, but there's not a lot of forest now. The population is also shrinking at an alarming pace.")
+
     mdFile.new_paragraph("I grew up here, and I have love for this land. You should visit if you have the chance.")
 
-    img_date = os.path.basename(new_image_path).split("_")[0]
+    mdFile.new_paragraph(" ")
+    mdFile.new_paragraph(" ")
+
     image_text = f"Mação viewed from the sky at {img_date}"
     mdFile.new_line(mdFile.new_inline_image(text=image_text, path=new_image_path))
 
