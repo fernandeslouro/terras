@@ -1,5 +1,4 @@
 # %% 
-from types import MethodDescriptorType
 from utilities import download_latest, refresh_markdown
 import argparse
 import os

@@ -1,3 +1,4 @@
+import errno
 import pyproj
 from git import Repo
 from shapely import geometry
@@ -17,7 +18,6 @@ import rasterio.mask
 from sentinelsat import SentinelAPI
 from datetime import date, timedelta
 from mdutils.mdutils import MdUtils
-from mdutils import Html
 
 def daterange(start_date, end_date):
     for n in range(int((end_date - start_date).days)):
@@ -177,19 +177,10 @@ def download_latest(intermediate_folder, dest, cutoff_name, county, days_back, u
     
     return str(os.path.join(dest, imgname)+'.png')
 
-
-
-def refresh_markdown(new_image_path, blog_dir):
-    # delete old markdon file
-    os.remove(os.path.join(blog_dir, "_pages", "hometown.md"))
-
-    # delete old image
-    for f in os.listdir(os.path.join(blog_dir, "_pages")):
-        if f.endswith(".png") and f != new_image_path:
-            os.remove(os.path.join(blog_dir, "_pages", "hometown.md"))
+def create_markdown_file(new_image_path, output_path):
 
     # crate new markdown file referencing the image, inside correct directory
-    mdFile = MdUtils(file_name=os.path.join(blog_dir, "_pages", "hometown.md"), title='Mação')
+    mdFile = MdUtils(file_name=output_path, title='Mação')
     img_date = os.path.basename(new_image_path).split("_")[0]
 
     mdFile.new_paragraph(f"This is a satellite picture of Mação, my home region, taken on {img_date}. It is the latest available image from ESA's Sentinel 2 satellites. It's kept updated using some [scripts](https://github.com/fernandeslouro/terras) I made to have something on my website to mark the passage of time. It all runs on a rented server I also use to self-host some services.")
@@ -205,9 +196,7 @@ def refresh_markdown(new_image_path, blog_dir):
     mdFile.new_line(mdFile.new_inline_image(text=image_text, path=os.path.join("/assets/images", os.path.basename(new_image_path))))
 
     mdFile.create_md_file()
-    # commit and push to blog
-    git_push(os.path.join(blog_dir, ".git"),
-        f'Updating with image from {new_image_path.split("-")[0]}')
+
 
 
 def git_push(repo_path, commit_message):
@@ -219,3 +208,27 @@ def git_push(repo_path, commit_message):
         origin.push()
     except:
         print('Some error occured while pushing the code') 
+
+
+
+def refresh_markdown(new_image_path, blog_dir):
+    # delete old markdon file
+    silentremove(os.path.join(blog_dir, "_pages", "hometown.md"))
+
+    # delete old image
+    #for f in os.listdir(os.path.join(blog_dir, "_pages")):
+        #if f.endswith(".png") and f != new_image_path:
+            #os.remove(os.path.join(blog_dir, "_pages", "hometown.md"))
+
+    create_markdown_file(new_image_path, os.path.join(blog_dir, "_pages", "hometown.md"))
+
+    # commit and push to blog
+    git_push(os.path.join(blog_dir, ".git"),
+        f'Updating with image from {new_image_path.split("-")[0]}')
+
+def silentremove(filename):
+    try:
+        os.remove(filename)
+    except OSError as e: # this would be "except OSError, e:" before Python 2.6
+        if e.errno != errno.ENOENT: # errno.ENOENT = no such file or directory
+            raise # re-raise exception if a different error occurred
