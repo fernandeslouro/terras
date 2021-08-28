@@ -1,9 +1,11 @@
+# %% 
+from types import MethodDescriptorType
 from utilities import download_latest, git_push
 import argparse
 import os
 from mdutils.mdutils import MdUtils
 from mdutils import Html
-
+# %%
 if __name__ == "__main__":
 
     parser=argparse.ArgumentParser()
@@ -39,14 +41,23 @@ if __name__ == "__main__":
         if f.endswith(".png") and f != new_image_path:
             os.remove(os.path.join(args.blog_dir, "_pages", "hometown.md"))
 
+  # %% 
+    new_image_path = "/home/j/projects/terras/2021-08-22_11:21.png"
+    print(os.path.basename(new_image_path))
+    # %%
     # crate new markdown file referencing the image, inside correct directory
     mdFile = MdUtils(file_name='hometown', title='Mação')
 
-    image_text = f"Mação viewed from the sky at {new_image_path.split('-')[0]}"
+    mdFile.new_paragraph("This is a satellite image from my home region. This is the latest available image from ESA's Sentinel 2 satellites. It's kept updated using some [scripts](https://github.com/fernandeslouro/terras) I made, both as a simple project to entertain myself, and to have a little something on my website to remember myself of the passage of time.")
+    mdFile.new_paragraph("In the summer months, the picture will appear very brown. This is due to the recent wildfires wich burned most of the area. In winter, it turns greener, but there's not a lot of forest at the moment. The population is also shrinking at an alarming pace.")
+    mdFile.new_paragraph("I grew up here, and I have love for this land. You should visit if you have the chance.")
 
+    img_date = os.path.basename(new_image_path).split("_")[0]
+    image_text = f"Mação viewed from the sky at {img_date}"
     mdFile.new_line(mdFile.new_inline_image(text=image_text, path=new_image_path))
-    mdFile.create_md_file()
 
+    mdFile.create_md_file()
+# %%
     # commit and push to blog
     git_push(os.path.join(args.blog_dir, ".git"),
         f'Updating with image from {new_image_path.split("-")[0]}')
