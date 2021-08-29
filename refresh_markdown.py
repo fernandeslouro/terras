@@ -1,4 +1,5 @@
-from utilities import refresh_markdown
+# %%
+from utilities import refresh_markdown, git_push
 import argparse
 
 if __name__ == "__main__":

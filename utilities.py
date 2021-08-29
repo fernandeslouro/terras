@@ -199,12 +199,16 @@ def create_markdown_file(new_image_path, output_path):
 
 
 
-def git_push(repo_path, commit_message):
+def git_push(markdown_path, repo_path, commit_message):
     try:
         repo = Repo(repo_path)
-        repo.git.add(update=True)
+        print(1)
+        repo.git.add([markdown_path])
+        print(2)
         repo.index.commit(commit_message)
+        print(3)
         origin = repo.remote(name='origin')
+        print(4)
         origin.push()
     except:
         print('Some error occured while pushing the code') 
@@ -215,15 +219,18 @@ def refresh_markdown(new_image_path, blog_dir):
     # delete old markdon file
     silentremove(os.path.join(blog_dir, "_pages", "hometown.md"))
 
+    new_markdown_path = os.path.join(blog_dir, "_pages", "hometown.md")
+
     # delete old image
     #for f in os.listdir(os.path.join(blog_dir, "_pages")):
         #if f.endswith(".png") and f != new_image_path:
             #os.remove(os.path.join(blog_dir, "_pages", "hometown.md"))
 
-    create_markdown_file(new_image_path, os.path.join(blog_dir, "_pages", "hometown.md"))
+    create_markdown_file(new_image_path, new_markdown_path)
 
+    new_markdown_path = "_pages/hometown.md"
     # commit and push to blog
-    git_push(os.path.join(blog_dir, ".git"),
+    git_push(new_markdown_path, os.path.join(blog_dir),
         f'Updating with image from {new_image_path.split("-")[0]}')
 
 def silentremove(filename):
