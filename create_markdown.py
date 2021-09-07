@@ -1,7 +1,6 @@
 # %% 
 from utilities import download_latest, refresh_markdown
 import argparse
-import os
 # %%
 if __name__ == "__main__":
 
