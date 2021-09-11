@@ -1,7 +1,9 @@
 import errno
 import pyproj
 from git import Repo
+from pathlib import Path
 from shapely import geometry
+import pandas as pd
 import datetime
 import glob
 import os
@@ -22,9 +24,9 @@ from mdutils.mdutils import MdUtils
 def daterange(start_date, end_date):
     for n in range(int((end_date - start_date).days)):
         yield start_date + datetime.timedelta(n)
-    
+
+
 def transform_shapefile(shp):
-    transformer = pyproj.Transformer.from_crs("epsg:4326", "epsg:32629")
     p1 = pyproj.Proj('epsg:4326', preserve_units=False)
     p2 = pyproj.Proj('epsg:32629', preserve_units=False)
     shp_t={
@@ -33,7 +35,7 @@ def transform_shapefile(shp):
         'properties':shp['properties'],
         'geometry':{'type':shp['geometry']['type'],
                     'coordinates':[pt for pt in pyproj.itransform(p1,p2,shp['geometry']['coordinates'][0], always_xy=True)]}
-        #'geometry':{'type':macao_shp['geometry']['type'], 'coordinates':[[transformer.transform(point[0], point[1]) for point in macao_shp['geometry']['coordinates'][0]]]}
+
     }
     to_mask_input = [geometry.Polygon([[p[0], p[1]] for p in shp_t['geometry']['coordinates']])]
     return to_mask_input
@@ -62,7 +64,7 @@ def download_no_fail(product, path, username, password, server):
     try:
         output = api.download(product, directory_path=path)
     except:
-        download_no_fail(product)
+        download_no_fail(product, path, username, password, server)
     return output
 
 def subfolders_copy(src, dest):
@@ -118,6 +120,16 @@ def get_zone_info(cutoff_name, county=True):
     return cutoff_shp, cutoff_shp_ptcrs, outer_square
 
 
+def get_product(username, password, server, outer_square, days_back):
+    api = SentinelAPI(username, password, server)
+    products = api.query(outer_square,
+                     date=(date.today() - timedelta(int(days_back)), date.today()),
+                     platformname='Sentinel-2',
+                     cloudcoverpercentage=(0, 30))
+
+    return api.to_dataframe(products)
+
+
 def download_latest(intermediate_folder, dest, cutoff_name, county, days_back, username, password, server, delete_intermediate_files):
     cutoff_shp, cutoff_shp_ptcrs, outer_square = get_zone_info(cutoff_name, county=county)
 
@@ -125,18 +137,13 @@ def download_latest(intermediate_folder, dest, cutoff_name, county, days_back, u
     os.makedirs(intermediate_folder, exist_ok=True)
     os.makedirs(dest, exist_ok=True)
 
-    #get products list from this day
-    api = SentinelAPI(username, password, server)
-    products = api.query(outer_square,
-                     date=(date.today() - timedelta(int(days_back)), date.today()),
-                     platformname='Sentinel-2',
-                     cloudcoverpercentage=(0, 30))
-    products_df = api.to_dataframe(products)
+    products_df = pd.DataFrame()
 
-    if products_df.empty:
-        print('No images found')
-    else:    
-        downloaded_product = download_most_recent_product(products_df, polygon_to_overlap=cutoff_shp, download_path=intermediate_folder)
+    while products_df.empty:
+        products_df = get_product(username, password, server, outer_square, days_back)
+        days_back += 1
+
+    downloaded_product = download_most_recent_product(products_df, polygon_to_overlap=cutoff_shp, download_path=intermediate_folder)
     
     # copy jp2 to dest
     subfolders_copy(os.path.join(intermediate_folder, downloaded_product['title'] + '.SAFE'), dest)
@@ -150,8 +157,7 @@ def download_latest(intermediate_folder, dest, cutoff_name, county, days_back, u
         #with rasterio.open(os.path.join(dest, i)) as src:
         print(dest, i)
         with rasterio.open(i) as src:
-            out_image, out_transform = rasterio.mask.mask(src, [cutoff_shp_ptcrs], crop=True, nodata=0, all_touched=True)
-            out_meta = src.meta.copy() 
+            out_image, _ = rasterio.mask.mask(src, [cutoff_shp_ptcrs], crop=True, nodata=0, all_touched=True)
     
         out_image = append_transparency_band(out_image)
             
@@ -180,15 +186,23 @@ def download_latest(intermediate_folder, dest, cutoff_name, county, days_back, u
 def create_markdown_file(new_image_path, output_path):
 
     # crate new markdown file referencing the image, inside correct directory
-    mdFile = MdUtils(file_name=output_path, title='Mação')
     img_date = os.path.basename(new_image_path).split("_")[0]
+    
+    mdFile = MdUtils(file_name=output_path)
 
-    mdFile.new_paragraph(f"This is a satellite picture of Mação, my home region, taken on {img_date}. It is the latest available image from ESA's Sentinel 2 satellites. It's kept updated using some [scripts](https://github.com/fernandeslouro/terras) I made to have something on my website to mark the passage of time. It all runs on a rented server I also use to self-host some services.")
+    mdFile.new_line("---")
+    mdFile.new_line("layout: page")
+    mdFile.new_line("---")
 
-    mdFile.new_paragraph("In the summer months, the picture will appear very brown. Most of the area was burned in recent wildfires, and it shows when the grass dies. In winter, it turns greener, but there's not a lot of forest now. The population is also shrinking at an alarming pace.")
-
+    mdFile.new_paragraph(f"This is a satellite picture of Mação, my home region, taken on {img_date}.\
+        It is the latest available image from ESA's Sentinel 2 satellites. It's kept updated using\
+        some [scripts](https://github.com/fernandeslouro/terras) I made to have something on my\
+        website to mark the passage of time. It all runs on a rented server I also use to self-host\
+        some services.")
+    mdFile.new_paragraph("In the summer months, the picture will appear very brown. Most of the area\
+        was burned in recent wildfires, and it shows when the grass dies. In winter, it turns greener,\
+        but there's not a lot of forest now. The population is also shrinking at an alarming pace.")
     mdFile.new_paragraph("I grew up here, and I have love for this land. You should visit if you have the chance.")
-
     mdFile.new_paragraph(" ")
     mdFile.new_paragraph(" ")
 
@@ -198,12 +212,11 @@ def create_markdown_file(new_image_path, output_path):
     mdFile.create_md_file()
 
 
-
-def git_push(markdown_path, repo_path, commit_message):
+def git_push(list_to_commit, repo_path, commit_message):
     try:
         repo = Repo(repo_path)
         print(1)
-        repo.git.add([markdown_path])
+        repo.git.add(list_to_commit)
         print(2)
         repo.index.commit(commit_message)
         print(3)
@@ -214,10 +227,12 @@ def git_push(markdown_path, repo_path, commit_message):
         print('Some error occured while pushing the code') 
 
 
-
 def refresh_markdown(new_image_path, blog_dir):
     # delete old markdon file
     silentremove(os.path.join(blog_dir, "_pages", "hometown.md"))
+    blog_image_path = os.path.join(blog_dir, "assets/images", Path(new_image_path).name)
+
+    shutil.copyfile(new_image_path, blog_image_path)
 
     new_markdown_path = os.path.join(blog_dir, "_pages", "hometown.md")
 
@@ -228,9 +243,11 @@ def refresh_markdown(new_image_path, blog_dir):
 
     create_markdown_file(new_image_path, new_markdown_path)
 
-    new_markdown_path = "_pages/hometown.md"
+    inside_blog_image_path = os.path.join("assets/images", Path(new_image_path).name)
+    files_to_commit = ["_pages/hometown.md", inside_blog_image_path]
+    print(files_to_commit)
     # commit and push to blog
-    git_push(new_markdown_path, os.path.join(blog_dir),
+    git_push(files_to_commit, os.path.join(blog_dir),
         f'Updating with image from {new_image_path.split("-")[0]}')
 
 def silentremove(filename):
