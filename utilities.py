@@ -34,9 +34,7 @@ def transform_shapefile(shp):
         'id':shp['id'],
         'properties':shp['properties'],
         'geometry':{'type':shp['geometry']['type'],
-                    'coordinates':[pt for pt in pyproj.itransform(p1,p2,shp['geometry']['coordinates'][0], always_xy=True)]}
-
-    }
+                    'coordinates':[pt for pt in pyproj.itransform(p1,p2,shp['geometry']['coordinates'][0], always_xy=True)]}}
     to_mask_input = [geometry.Polygon([[p[0], p[1]] for p in shp_t['geometry']['coordinates']])]
     return to_mask_input
 
@@ -123,7 +121,7 @@ def get_zone_info(cutoff_name, county=True):
 def get_product(username, password, server, outer_square, days_back):
     api = SentinelAPI(username, password, server)
     products = api.query(outer_square,
-                     date=(date.today() - timedelta(int(days_back)), date.today()),
+                     date=(date.today() - timedelta(days_back), date.today()),
                      platformname='Sentinel-2',
                      cloudcoverpercentage=(0, 30))
 
@@ -138,6 +136,8 @@ def download_latest(intermediate_folder, dest, cutoff_name, county, days_back, u
     os.makedirs(dest, exist_ok=True)
 
     products_df = pd.DataFrame()
+
+    days_back = int(days_back)
 
     while products_df.empty:
         products_df = get_product(username, password, server, outer_square, days_back)
@@ -183,34 +183,37 @@ def download_latest(intermediate_folder, dest, cutoff_name, county, days_back, u
     
     return str(os.path.join(dest, imgname)+'.png')
 
+def delete_initial_lines_file(filepath, lines_nr):
+    with open(filepath, 'r') as fin:
+        data = fin.read().splitlines(True)
+    with open(filepath, 'w') as fout:
+        fout.writelines(data[3:])
+
 def create_markdown_file(new_image_path, output_path):
 
     # crate new markdown file referencing the image, inside correct directory
     img_date = os.path.basename(new_image_path).split("_")[0]
     
     mdFile = MdUtils(file_name=output_path)
-
-    mdFile.new_line("---")
+    mdFile.write("---")
     mdFile.new_line("layout: page")
     mdFile.new_line("---")
 
-    mdFile.new_paragraph(f"This is a satellite picture of Mação, my home region, taken on {img_date}.\
-        It is the latest available image from ESA's Sentinel 2 satellites. It's kept updated using\
-        some [scripts](https://github.com/fernandeslouro/terras) I made to have something on my\
-        website to mark the passage of time. It all runs on a rented server I also use to self-host\
-        some services.")
-    mdFile.new_paragraph("In the summer months, the picture will appear very brown. Most of the area\
-        was burned in recent wildfires, and it shows when the grass dies. In winter, it turns greener,\
-        but there's not a lot of forest now. The population is also shrinking at an alarming pace.")
+    mdFile.new_paragraph(f"This is a satellite picture of Mação, my home region, taken on {img_date}."
+        "It is the latest available image from ESA's Sentinel 2 satellites. It's kept updated using "
+        "some [scripts](https://github.com/fernandeslouro/terras) I made to have something on my "
+        "website to mark the passage of time. It all runs on a rented server I also use to self-host "
+        "some services.")
+    mdFile.new_paragraph("In the summer months, the picture will appear very brown. Most of the area was burned in recent wildfires, and it shows when the grass dies. In winter, it turns greener, but there's not a lot of forest now. The population is also shrinking at an alarming pace.")
     mdFile.new_paragraph("I grew up here, and I have love for this land. You should visit if you have the chance.")
-    mdFile.new_paragraph(" ")
-    mdFile.new_paragraph(" ")
 
     image_text = f"Mação viewed from the sky at {img_date}"
     mdFile.new_line(mdFile.new_inline_image(text=image_text, path=os.path.join("/assets/images", os.path.basename(new_image_path))))
 
     mdFile.create_md_file()
 
+    # 3 empty lines are being created for some misterious reason, and they break the formatting
+    delete_initial_lines_file(output_path, 3)
 
 def git_push(list_to_commit, repo_path, commit_message):
     try:
