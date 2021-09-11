@@ -199,13 +199,20 @@ def create_markdown_file(new_image_path, output_path):
     mdFile.new_line("layout: page")
     mdFile.new_line("---")
 
-    mdFile.new_paragraph(f"This is a satellite picture of Mação, my home region, taken on {img_date}."
+    mdFile.new_paragraph(f"This is a satellite picture of Mação, my home region, taken on {img_date}. "
         "It is the latest available image from ESA's Sentinel 2 satellites. It's kept updated using "
         "some [scripts](https://github.com/fernandeslouro/terras) I made to have something on my "
         "website to mark the passage of time. It all runs on a rented server I also use to self-host "
         "some services.")
-    mdFile.new_paragraph("In the summer months, the picture will appear very brown. Most of the area was burned in recent wildfires, and it shows when the grass dies. In winter, it turns greener, but there's not a lot of forest now. The population is also shrinking at an alarming pace.")
+    mdFile.new_paragraph("In the summer months, the picture will appear very brown. Most of the area "
+        "was burned in recent wildfires, and it shows when the grass dies. In winter, it turns greener"
+        ", but there's not a lot of forest now. The population is also shrinking at an alarming pace.")
     mdFile.new_paragraph("I grew up here, and I have love for this land. You should visit if you have the chance.")
+
+    mdFile.new_paragraph(" ")
+    mdFile.new_paragraph(" ")
+    mdFile.new_paragraph(" ")
+    mdFile.new_paragraph(" ")
 
     image_text = f"Mação viewed from the sky at {img_date}"
     mdFile.new_line(mdFile.new_inline_image(text=image_text, path=os.path.join("/assets/images", os.path.basename(new_image_path))))
