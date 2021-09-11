@@ -155,7 +155,7 @@ def download_latest(intermediate_folder, dest, cutoff_name, county, days_back, u
                 imgname = f'{namepart[:4]}-{namepart[4:6]}-{namepart[6:8]}_{namepart[9:11]}:{namepart[11:13]}'
                 break
         #with rasterio.open(os.path.join(dest, i)) as src:
-        print(dest, i)
+        #print(dest, i)
         with rasterio.open(i) as src:
             out_image, _ = rasterio.mask.mask(src, [cutoff_shp_ptcrs], crop=True, nodata=0, all_touched=True)
     
@@ -218,13 +218,9 @@ def create_markdown_file(new_image_path, output_path):
 def git_push(list_to_commit, repo_path, commit_message):
     try:
         repo = Repo(repo_path)
-        print(1)
         repo.git.add(list_to_commit)
-        print(2)
         repo.index.commit(commit_message)
-        print(3)
         origin = repo.remote(name='origin')
-        print(4)
         origin.push()
     except:
         print('Some error occured while pushing the code') 
@@ -248,7 +244,6 @@ def refresh_markdown(new_image_path, blog_dir):
 
     inside_blog_image_path = os.path.join("assets/images", Path(new_image_path).name)
     files_to_commit = ["_pages/hometown.md", inside_blog_image_path]
-    print(files_to_commit)
     # commit and push to blog
     git_push(files_to_commit, os.path.join(blog_dir),
         f'Updating with image from {new_image_path.split("-")[0]}')

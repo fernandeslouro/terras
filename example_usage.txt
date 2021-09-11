@@ -1,3 +1,5 @@
+python full_page_update.py --intermediate_folder ../int --dest ../test --cutoff_name Mação --county True  --days_back 15 --username fernandeslouro --password copernicospw --server https://scihub.copernicus.eu/dhus/#/home --delete_intermediate_files --blog_dir ../blog
+
 python download_latest.py --intermediate_folder ../int --dest ../test --cutoff_name Mação --county True  --days_back 15 --username fernandeslouro --password copernicospw --server https://scihub.copernicus.eu/dhus/#/home --delete_intermediate_files
 
 python refresh_markdown.py --new_image_path ../test/2021-08-27_11:21.png --blog_dir ../blog
